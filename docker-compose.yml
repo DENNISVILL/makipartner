@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:13
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_PASSWORD=odoo
+      - POSTGRES_USER=odoo
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U odoo"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  odoo:
+    image: odoo:16.0
+    command: -- --init=base -d postgres
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8069:8069"
+    volumes:
+      - ./odoo.conf:/etc/odoo/odoo.conf
+      - ./odoo-ecuador:/mnt/odoo-ecuador
+      - odoo-web-data:/var/lib/odoo
+    restart: always
+
+  frontend:
+    build:
+      context: ./heroui-project
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    depends_on:
+      - odoo
+    restart: always
+    environment:
+      - VITE_API_URL=http://odoo:8069
+      - VITE_PUBLIC_API_URL=http://odoo:8069
+
+volumes:
+  db-data:
+  odoo-web-data:
